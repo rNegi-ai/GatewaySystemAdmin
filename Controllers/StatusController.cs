@@ -16,7 +16,7 @@ namespace SystemAdmin.Controllers
 
         public async Task<IActionResult> Index()
         {
-            var response = await _httpClient.GetStringAsync("https://localhost:63529/api/Statuses/GetStatuses"); 
+            var response = await _httpClient.GetStringAsync("https://localhost:54706/api/Statuses/GetStatuses"); //63529
             var statuses = JsonConvert.DeserializeObject<List<StatusModel>>(response);
 
             //ViewBag.Statuses = statuses;

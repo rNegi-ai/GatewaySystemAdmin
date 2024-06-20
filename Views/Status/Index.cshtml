@@ -4,111 +4,168 @@
     // var statuses = ViewBag.Statuses as List<SystemAdmin.Models.StatusModel>;
 }
 
-<h2> Status Tree </h2>
+<!DOCTYPE html>
+<html>
+<head>
+    <title>@ViewData["Title"]</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jstree/3.3.12/themes/default/style.min.css" />
+    <style>
+        .badge-identifier {
+            display: inline-block;
+            margin-right: 5px;
+            padding: 5px;
+            border-radius: 5px;
+            background-color: #16a085; /* Dark teal */
+            color: #ffffff; /* White */
+        }
+        #statusTree ul {
+            margin-bottom: 15px; /* Add vertical spacing between list items */
+        }
+        h2 {
+            font-size: 28px;
+            font-weight: bold;
+            color: #333; /* Adjust color as per your theme */
+            padding: 10px 20px;
+            background-color: #f0f0f0; /* Light background color */
+            border-radius: 6px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); /* Optional: Adds a subtle shadow */
+            margin-bottom: 20px; /* Vertical spacing */
+            text-align: center;
+        }
 
-<div id="statusTree"> </div>
 
-@section scripts {
-    <script>
-        $(document).ready(function() {
-            const connection = new signalR.HubConnectionBuilder()
-                .withUrl("/statusHub")
-                .build();
+    </style>
+</head>
+<body>
+    <div class="container mt-5">
+@*         <h2 class="mb-4 text-center">Status Tree</h2>
+ *@        <h2 class="mb-4 text-center">Status Tree</h2>       
+           <div id="statusTree" class="border rounded p-3 bg-light"></div>
+    </div>
+
+    @section scripts {
+        <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+        <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.bundle.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/jstree/3.3.12/jstree.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/5.0.9/signalr.min.js"></script>
+
+        <script>
+            $(document).ready(function() {
+                // const connection = new signalR.HubConnectionBuilder()
+                //     .withUrl("/statusHub")
+                //     .build();
 
                 function fetchInitialData() {
-                return $.ajax({
-                    url: '/api/Statuses/GetStatuses',
-                    method: 'GET',
-                    dataType: 'json'
-                });
-            }
+                    return $.ajax({
+                        url: '/api/Statuses/GetStatuses',
+                        method: 'GET',
+                        dataType: 'json'
+                    });
+                }
+
 
             function constructTreeData(statuses) {
                 const treeData = [];
 
-                // First filter for NewRsiMessageSubmitted.IntegrationEvent
-                const submitted = statuses.filter(status => status.EventName === 'NewRsiMessageSubmitted.IntegrationEvent');
+                const submittedStatuses = statuses.filter(status => status.EventName === 'NewRsiMessageSubmitted.IntegrationEvent');
 
-                submitted.forEach(sub => {
-                    // Then check for NewRsiMessageRecieved.IntegrationEvent with the same Identifier
-                    const received = statuses.filter(status => status.Identifier === sub.Identifier && status.EventName === 'NewRsiMessageRecieved.IntegrationEvent');
-                    const receivedNodes = received.map(rec => {
-                        // Finally, check for RsiMessagePublished.IntegrationEvent with the same Identifier
-                        const published = statuses.filter(status => status.Identifier === rec.Identifier && status.EventName === 'RsiMessagePublished.IntegrationEvent');
-                        const publishedNodes = published.map(pub => ({
-                            text: `Published: ${pub.Identifier}`,
-                            icon: "jstree-file"
-                        }));
+                submittedStatuses.forEach(sub => {
+                    const recStatus = statuses.find(status => status.Identifier === sub.Identifier && status.EventName === 'NewRsiMessageRecieved.IntegrationEvent');
 
-                        return {
-                            text: `Received: ${rec.Identifier}`,
-                            children: publishedNodes,
-                            icon: "jstree-folder"
+                    const submittedNode = {
+                        text: `<div class="badge badge-primary badge-identifier">Submitted: ${sub.Identifier}</div>`,
+                        icon: "jstree-file"
+                    };
+
+                    if (recStatus) {
+                        const receivedNode = {
+                            text: `<div class="badge badge-info badge-identifier">Received: ${recStatus.Identifier}</div>`,
+                            icon: "jstree-folder",
+                            children: [submittedNode]
                         };
-                    });
 
-                    treeData.push({
-                        text: `Submitted: ${sub.Identifier}`,
-                        children: receivedNodes,
-                        icon: "jstree-folder"
-                    });
+                        const pubStatus = statuses.find(status => status.Identifier === sub.Identifier && status.EventName === 'RsiMessagePublished.IntegrationEvent');
+                        if (pubStatus) {
+                            const publishedNode = {
+                                text: `<div class="badge badge-success badge-identifier">Published: ${pubStatus.Identifier}</div>`,
+                                icon: "jstree-folder",
+                                children: [receivedNode]
+                            };
+                            treeData.push(publishedNode);
+                        } else {
+                            treeData.push(receivedNode);
+                        }
+                    } else {
+                        treeData.push(submittedNode);
+                    }
                 });
 
                 return treeData;
             }
 
-            function initializeTree(treeData) {
-                $('#statusTree').jstree({
-                    'core': {
-                        'data': treeData
-                    },
-                    "plugins": ["types"],
-                    "types": {
-                        "default": {
-                            "icon": "jstree-folder"
+
+
+
+
+
+
+
+                function initializeTree(treeData) {
+                    $('#statusTree').jstree({
+                        'core': {
+                            'data': treeData
                         },
-                        "file": {
-                            "icon": "jstree-file"
+                        "plugins": ["types"],
+                        "types": {
+                            "default": {
+                                "icon": "jstree-folder"
+                            },
+                            "file": {
+                                "icon": "jstree-file"
+                            }
                         }
-                    }
-                });
-            }
-            // Initial tree load
-            const initialStatuses = @Html.Raw(JsonConvert.SerializeObject(Model));
-            const initialTreeData = constructTreeData(initialStatuses);
-            initializeTree(initialTreeData);
+                    });
+                }
 
-            // Start the SignalR connection
-            connection.start().then(() => {
-                console.log("Connected to SignalR hub");
-            }).catch(err => console.error(err.toString()));
+                // Initial tree load
+                const initialStatuses = @Html.Raw(JsonConvert.SerializeObject(Model));
+                const initialTreeData = constructTreeData(initialStatuses);
+                initializeTree(initialTreeData);
 
-            // Receive submitted status updates from the server
-            connection.on("SubmittedStatusUpdate", (status) => {
-                fetchInitialData().done(function (statuses) {
-                    const treeData = constructTreeData(statuses);
-                    $('#statusTree').jstree(true).settings.core.data = treeData;
-                    $('#statusTree').jstree(true).refresh();
-                });
+                // Start the SignalR connection
+                // connection.start().then(() => {
+                //     console.log("Connected to SignalR hub");
+                // }).catch(err => console.error(err.toString()));
+
+                // // Receive submitted status updates from the server
+                // connection.on("SubmittedStatusUpdate", (status) => {
+                //     fetchInitialData().done(function (statuses) {
+                //         const treeData = constructTreeData(statuses);
+                //         $('#statusTree').jstree(true).settings.core.data = treeData;
+                //         $('#statusTree').jstree(true).refresh();
+                //     });
+                // });
+
+                // // Receive received status updates from the server
+                // connection.on("ReceivedStatusUpdate", (status) => {
+                //     fetchInitialData().done(function (statuses) {
+                //         const treeData = constructTreeData(statuses);
+                //         $('#statusTree').jstree(true).settings.core.data = treeData;
+                //         $('#statusTree').jstree(true).refresh();
+                //     });
+                // });
+
+                // // Receive published status updates from the server
+                // connection.on("PublishedStatusUpdate", (status) => {
+                //     fetchInitialData().done(function (statuses) {
+                //         const treeData = constructTreeData(statuses);
+                //         $('#statusTree').jstree(true).settings.core.data = treeData;
+                //         $('#statusTree').jstree(true).refresh();
+                //     });
+                // });
             });
-
-            // Receive received status updates from the server
-            connection.on("ReceivedStatusUpdate", (status) => {
-                fetchInitialData().done(function (statuses) {
-                    const treeData = constructTreeData(statuses);
-                    $('#statusTree').jstree(true).settings.core.data = treeData;
-                    $('#statusTree').jstree(true).refresh();
-                });
-            });
-
-            // Receive published status updates from the server
-            connection.on("PublishedStatusUpdate", (status) => {
-                fetchInitialData().done(function (statuses) {
-                    const treeData = constructTreeData(statuses);
-                    $('#statusTree').jstree(true).settings.core.data = treeData;
-                    $('#statusTree').jstree(true).refresh();
-                });
-            });
-        });
-    </script>
-}
+        </script>
+    }
+</body>
+</html>
